@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#0f172a" />
+<meta name="description" content="بازی تیک‌تاک‌تو با حالت دو نفره و بازی مقابل کامپیوتر" />
+
+<title>بازی تیک‌تاک‌تو</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icon-192.png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="تیک‌تاک‌تو" />
+
+<style>
+  :root {
+    --bg1: #0f172a;
+    --bg2: #1e293b;
+    --cell: #1f2a44;
+    --cell-hover: #2b3a5c;
+    --x: #38bdf8;
+    --o: #fb7185;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --line: #334155;
+    --accent: #22c55e;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    overscroll-behavior: none;
+    touch-action: manipulation;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 20% 0%, #1e293b 0%, #0f172a 60%);
+    color: var(--text);
+    font-family: "Segoe UI", Tahoma, Vazirmatn, sans-serif;
+    padding: calc(20px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
+  }
+
+  .app {
+    width: 100%;
+    max-width: 460px;
+    background: rgba(30, 41, 59, 0.55);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    padding: 24px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(8px);
+  }
+
+  h1 {
+    margin: 0 0 4px;
+    font-size: 1.6rem;
+    text-align: center;
+    letter-spacing: 1px;
+  }
+
+  .sub {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-bottom: 18px;
+  }
+
+  .status {
+    text-align: center;
+    font-size: 1.15rem;
+    font-weight: 700;
+    min-height: 30px;
+    margin-bottom: 14px;
+    transition: color 0.2s;
+  }
+
+  .status.win { color: var(--accent); }
+  .status.draw { color: var(--muted); }
+  .status.turn-x { color: var(--x); }
+  .status.turn-o { color: var(--o); }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    aspect-ratio: 1 / 1;
+    margin-bottom: 18px;
+  }
+
+  .cell {
+    background: var(--cell);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(2.2rem, 12vw, 3.4rem);
+    font-weight: 800;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+    color: var(--text);
+  }
+
+  .cell:hover:not(.taken) {
+    background: var(--cell-hover);
+    transform: translateY(-2px);
+  }
+
+  .cell.taken { cursor: not-allowed; }
+  .cell.x { color: var(--x); text-shadow: 0 0 18px rgba(56, 189, 248, 0.5); }
+  .cell.o { color: var(--o); text-shadow: 0 0 18px rgba(251, 113, 133, 0.5); }
+
+  .cell.win {
+    background: rgba(34, 197, 94, 0.22);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.45), 0 0 22px rgba(34, 197, 94, 0.35);
+  }
+
+  .cell:active:not(.taken) { transform: scale(0.97); }
+
+  .scores {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+    text-align: center;
+  }
+
+  .score-box {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 8px 4px;
+  }
+
+  .score-box .label { font-size: 0.75rem; color: var(--muted); }
+  .score-box .val { font-size: 1.3rem; font-weight: 800; }
+  .score-box.x .val { color: var(--x); }
+  .score-box.o .val { color: var(--o); }
+
+  .row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .modes { display: flex; gap: 8px; }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid var(--line);
+    background: rgba(15, 23, 42, 0.6);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    flex: 1;
+  }
+
+  button:hover { background: var(--cell-hover); }
+  button:active { transform: scale(0.98); }
+
+  button.active {
+    border-color: var(--accent);
+    background: rgba(34, 197, 94, 0.15);
+    color: #bbf7d0;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    border-color: #1d4ed8;
+  }
+  .btn-primary:hover { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+
+  .btn-ghost { flex: 0 0 auto; padding: 11px 16px; }
+
+  .install-bar {
+    display: none;
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.45);
+    border-radius: 14px;
+    font-size: 0.85rem;
+    color: #bbf7d0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    line-height: 1.6;
+  }
+  .install-bar.show { display: flex; }
+  .install-bar button {
+    flex: 0 0 auto;
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    background: rgba(34, 197, 94, 0.35);
+    border-color: rgba(34, 197, 94, 0.6);
+  }
+
+  @media (max-width: 420px), (max-height: 720px) {
+    .app { padding: 16px; border-radius: 20px; }
+    h1 { font-size: 1.35rem; }
+    .sub { margin-bottom: 12px; }
+    .board { gap: 8px; margin-bottom: 14px; }
+    .scores { margin-bottom: 14px; }
+    .row { margin-bottom: 10px; }
+    button { padding: 13px 12px; }
+  }
+
+  @media (display-mode: standalone) {
+    .install-bar { display: none !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <h1>تیک‌تاک‌تو</h1>
+    <p class="sub">سه تا در یک ردیف بچین تا ببری!</p>
+
+    <div class="status turn-x" id="status">نوبت بازیکن ✕</div>
+
+    <div class="board" id="board"></div>
+
+    <div class="scores">
+      <div class="score-box x"><div class="label">✕</div><div class="val" id="scoreX">0</div></div>
+      <div class="score-box"><div class="label">مساوی</div><div class="val" id="scoreDraw">0</div></div>
+      <div class="score-box o"><div class="label">◯</div><div class="val" id="scoreO">0</div></div>
+    </div>
+
+    <div class="row modes">
+      <button id="modePvP" class="active">👥 دو نفره</button>
+      <button id="modeAI">🤖 مقابل کامپیوتر</button>
+    </div>
+
+    <div class="row">
+      <button id="newRound" class="btn-primary">دست جدید</button>
+      <button id="resetScores" class="btn-ghost">صفر کردن امتیاز</button>
+    </div>
+
+    <div class="install-bar" id="installBar">
+      <span>این بازی رو می‌تونی روی گوشیت نصب کنی! 📲</span>
+      <button id="installBtn">نصب</button>
+    </div>
+  </div>
+
+<script>
+(function () {
+  const WIN_LINES = [
+    [0,1,2],[3,4,5],[6,7,8], // ردیف‌ها
+    [0,3,6],[1,4,7],[2,5,8], // ستون‌ها
+    [0,4,8],[2,4,6]          // قطرها
+  ];
+
+  const boardEl   = document.getElementById('board');
+  const statusEl  = document.getElementById('status');
+  const scoreXEl  = document.getElementById('scoreX');
+  const scoreOEl  = document.getElementById('scoreO');
+  const scoreDEl  = document.getElementById('scoreDraw');
+  const modePvP   = document.getElementById('modePvP');
+  const modeAI    = document.getElementById('modeAI');
+
+  let board = Array(9).fill('');
+  let current = 'X';
+  let gameOver = false;
+  let vsAI = false;
+  let scores = { X: 0, O: 0, D: 0 };
+
+  // ---------- ساخت صفحه ----------
+  const cells = [];
+  for (let i = 0; i < 9; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.index = i;
+    cell.addEventListener('click', () => handleClick(i));
+    boardEl.appendChild(cell);
+    cells.push(cell);
+  }
+
+  // ---------- منطق بازی ----------
+  function handleClick(i) {
+    if (gameOver || board[i] !== '') return;
+    if (vsAI && current === 'O') return; // نوبت کامپیوتر است
+    place(i, current);
+  }
+
+  function place(i, player) {
+    board[i] = player;
+    paint(i, player);
+
+    const win = getWinner(board);
+    if (win) return finishWin(win);
+    if (board.every(c => c !== '')) return finishDraw();
+
+    current = player === 'X' ? 'O' : 'X';
+    updateStatus();
+
+    if (vsAI && current === 'O') {
+      setTimeout(aiMove, 380);
+    }
+  }
+
+  function paint(i, player) {
+    const cell = cells[i];
+    cell.textContent = player === 'X' ? '✕' : '◯';
+    cell.classList.add('taken', player.toLowerCase());
+  }
+
+  function getWinner(b) {
+    for (const [a, c, d] of WIN_LINES) {
+      if (b[a] && b[a] === b[c] && b[a] === b[d]) {
+        return { player: b[a], line: [a, c, d] };
+      }
+    }
+    return null;
+  }
+
+  function finishWin(win) {
+    gameOver = true;
+    win.line.forEach(i => cells[i].classList.add('win'));
+
+    if (vsAI) {
+      // بازیکن همیشه ✕ است
+      if (win.player === 'X') scores.X++; else scores.O++;
+    } else {
+      scores[win.player]++;
+    }
+    updateScores();
+
+    statusEl.textContent = `بازیکن ${win.player === 'X' ? '✕' : '◯'} برد! 🎉`;
+    statusEl.className = 'status win';
+  }
+
+  function finishDraw() {
+    gameOver = true;
+    scores.D++;
+    updateScores();
+    statusEl.textContent = 'مساوی شد! 🤝';
+    statusEl.className = 'status draw';
+  }
+
+  function updateStatus() {
+    if (vsAI && current === 'O') {
+      statusEl.textContent = 'کامپیوتر در حال فکر کردن…';
+      statusEl.className = 'status turn-o';
+      return;
+    }
+    statusEl.textContent = `نوبت بازیکن ${current === 'X' ? '✕' : '◯'}`;
+    statusEl.className = 'status ' + (current === 'X' ? 'turn-x' : 'turn-o');
+  }
+
+  function updateScores() {
+    scoreXEl.textContent = scores.X;
+    scoreOEl.textContent = scores.O;
+    scoreDEl.textContent = scores.D;
+  }
+
+  // ---------- هوش کامپیوتر (Minimax با هرس آلفا-بتا) ----------
+  function aiMove() {
+    if (gameOver) return;
+    const best = minimax(board.slice(), 'O', -Infinity, Infinity);
+    place(best.index, 'O');
+  }
+
+  function minimax(b, player, alpha, beta) {
+    const win = getWinner(b);
+    if (win) {
+      const depth = b.filter(c => c !== '').length;
+      return { score: win.player === 'O' ? (10 - depth) : (depth - 10) };
+    }
+    if (b.every(c => c !== '')) return { score: 0 };
+
+    let bestScore = player === 'O' ? -Infinity : Infinity;
+    let bestIndex = -1;
+
+    for (let i = 0; i < 9; i++) {
+      if (b[i] !== '') continue;
+      b[i] = player;
+      const { score } = minimax(b, player === 'O' ? 'X' : 'O', alpha, beta);
+      b[i] = '';
+
+      if (player === 'O') {
+        if (score > bestScore) { bestScore = score; bestIndex = i; }
+        alpha = Math.max(alpha, bestScore);
+      } else {
+        if (score < bestScore) { bestScore = score; bestIndex = i; }
+        beta = Math.min(beta, bestScore);
+      }
+      if (beta <= alpha) break;
+    }
+    return { score: bestScore, index: bestIndex };
+  }
+
+  // ---------- کنترل‌ها ----------
+  function newRound() {
+    board = Array(9).fill('');
+    current = 'X';
+    gameOver = false;
+    cells.forEach(c => {
+      c.textContent = '';
+      c.className = 'cell';
+    });
+    updateStatus();
+  }
+
+  function setMode(ai) {
+    vsAI = ai;
+    modeAI.classList.toggle('active', ai);
+    modePvP.classList.toggle('active', !ai);
+    scores = { X: 0, O: 0, D: 0 };
+    updateScores();
+    newRound();
+  }
+
+  document.getElementById('newRound').addEventListener('click', newRound);
+  document.getElementById('resetScores').addEventListener('click', () => {
+    scores = { X: 0, O: 0, D: 0 };
+    updateScores();
+  });
+  modePvP.addEventListener('click', () => setMode(false));
+  modeAI.addEventListener('click', () => setMode(true));
+
+  updateStatus();
+  updateScores();
+
+  /* ---------------- PWA ---------------- */
+  const installBar = document.getElementById('installBar');
+  const installBtn = document.getElementById('installBtn');
+  let deferredPrompt = null;
+
+  // اندروید / کروم / اج
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBar.classList.add('show');
+  });
+
+  installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    installBar.classList.remove('show');
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    installBar.classList.remove('show');
+  });
+
+  // آی‌او‌اس: راهنمای نصب دستی
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const isStandalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    navigator.standalone === true;
+
+  if (isIOS && !isStandalone) {
+    installBar.innerHTML =
+      '<span dir="rtl">برای نصب روی آیفون: دکمه «اشتراک‌گذاری» ⬆️ را بزن و گزینهٔ «افزودن به صفحهٔ اصلی» را انتخاب کن.</span>';
+    installBar.classList.add('show');
+  }
+
+  // ثبت Service Worker (فقط روی http/https کار می‌کند)
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+})();
+</script>
+</body>
+</html>
